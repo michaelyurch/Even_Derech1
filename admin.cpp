@@ -204,7 +204,7 @@ void admin::parcer (std::list<std::string> input) {
 //    std::map <std::string, Command> commandsMap;
 }
 
-int admin::determineCurrentOperation(std::string expression) {
+Expression* admin::determineCurrentOperation(std::string expression) {
 
     int len = expression.length();
 
@@ -217,13 +217,35 @@ int admin::determineCurrentOperation(std::string expression) {
     bool isNumber = true;
 
     for (int i = 0; i < len; i++) {
-        if (!isdigit(expression[i])) {
+        if (!isdigit(expression[i]) && expression[i] != '.') {
             isNumber = false;
             break;
         }
     }
 
     if (isNumber) {
-        return -1;
+        return new Number(expression);
+    }
+
+    int numOfOpenedBrackets = 0;
+
+    for (int i = 0; i < len; i++) {
+
+        if (expression[i] == '(') {
+            numOfOpenedBrackets++;
+        }
+
+        if (expression[i] == ')') {
+            numOfOpenedBrackets--;
+        }
+
+        if (numOfOpenedBrackets == 0 && (expression[i] == '+' || expression[i] == '-'
+                                        || expression[i] == '*' || expression[i] == '/')) {
+            
+            if (expression[i] == '+') {
+                return new PlusOperation(expression.substr(0, i),
+                                    expression.substr(i + 1, len - i -1));
+            }
+        }
     }
 }
