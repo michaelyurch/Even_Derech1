@@ -2,7 +2,5 @@
 
 int OpenDataServerCommand::execute() {
 
-    
-
     return 3;
 }

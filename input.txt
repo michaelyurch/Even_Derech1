@@ -1,2 +1,8 @@
 openDataServer (21+ 5) * 4 7.9 + 9 -3
-openDataServer (21+ 5) * 4 ,-5
+openDataServer ((-21)+(-7))/7 ,   -8
+var some = bind "/some/folder-secret/property"
+var g4 = 10
+rudder = (heading - h0)/20
+rudder = 20 * (heading - h0)
+ww = - tt / 10
+zz = xx + vv

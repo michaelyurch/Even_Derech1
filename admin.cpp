@@ -61,7 +61,8 @@ std::list<std::string> admin::lexer (std::string input) {
             continue;
         }
 
-        if (input[i] == ',' && expressionCurrentSequenceLength > 0 && curItem.length() > 0) {
+        if (input[i] == ',' && expressionCurrentSequenceLength > 0 
+            && curItem.length() > 0 && !this->isContainsSpacesOnly(curItem)) {
 
             for(int i2 = 0; i2 < curItem.length(); i2++) {
                 if (curItem[i2] == ' ' || curItem[i2] == '\t' || curItem[i2] == '\n') {
@@ -80,9 +81,11 @@ std::list<std::string> admin::lexer (std::string input) {
 
         int curChar = input[i];
 
-        if((curChar >= 97 && curChar <= 122) || (curChar >= 65 && curChar <= 90)) {
+        if((curChar >= 97 && curChar <= 122) || (curChar >= 65 && curChar <= 90)
+            || input[i] == '"' || input[i] == '=' || input[i] == '<' || input[i] == '>') {
 
-            if (curItem.length() > 0 && commandCurrentSequenceLength == 0) {
+            if (curItem.length() > 0 && commandCurrentSequenceLength == 0
+                && !this->isContainsSpacesOnly(curItem)) {
 
                 for(int i2 = 0; i2 < curItem.length(); i2++) {
                     if (curItem[i2] == ' ' || curItem[i2] == '\t' || curItem[i2] == '\n') {
@@ -103,12 +106,16 @@ std::list<std::string> admin::lexer (std::string input) {
             expressionCurrentSequenceLength = 0;
         }
 
-        else if(isdigit(input[i]) || input[i] == '(' || input[i] == ')'
-                || input[i] == '+' || input[i] == '-' || input[i] == '*'
-                || input[i] == '/' || input[i] == ' ' || input[i] == '\n'
-                || input[i] == '\t'|| input[i] == '.') {
+        else if(input[i] == '(' || input[i] == ')'
+                || input[i] == '+' || input[i] == '*' || input[i] == ' ' 
+                || input[i] == '\n' || input[i] == '\t'|| input[i] == '.'
+                || (input[i] == '-'  && expressionCurrentSequenceLength == 0
+                    && commandCurrentSequenceLength == 0)
+                || (isdigit(input[i]) && expressionCurrentSequenceLength == 0
+                    && commandCurrentSequenceLength == 0)) {
 
-            if (curItem.length() > 0 && expressionCurrentSequenceLength == 0) {
+            if (curItem.length() > 0 && expressionCurrentSequenceLength == 0
+                && !this->isContainsSpacesOnly(curItem)) {
 
                 for(int i2 = 0; i2 < curItem.length(); i2++) {
                     if (curItem[i2] == ' ' || curItem[i2] == '\t' || curItem[i2] == '\n') {
@@ -129,7 +136,9 @@ std::list<std::string> admin::lexer (std::string input) {
             expressionCurrentSequenceLength++;
         }
 
-        if (((curChar >= 97 && curChar <= 122) || (curChar >= 65 && curChar <= 90)) 
+        if (((curChar >= 97 && curChar <= 122) || (curChar >= 65 && curChar <= 90)
+            || input[i] == '"' || input[i] == '=' || input[i] == '<' || input[i] == '>'
+            || input[i] == '-' || input[i] == '/' || isdigit(input[i])) 
             && commandCurrentSequenceLength > 0) {
             
             curItem += input[i];
@@ -141,7 +150,7 @@ std::list<std::string> admin::lexer (std::string input) {
                 || input[i] == '\t'|| input[i] == '.') && expressionCurrentSequenceLength > 0) {
 
             if (isdigit(lastNonSpaceChar) && spaceCurrentSequenceLength > 0 && isdigit(input[i])) {
-                if (curItem.length() > 0) {
+                if (curItem.length() > 0 && !this->isContainsSpacesOnly(curItem)) {
 
                     for(int i2 = 0; i2 < curItem.length(); i2++) {
                         if (curItem[i2] == ' ' || curItem[i2] == '\t' || curItem[i2] == '\n') {
@@ -172,16 +181,8 @@ std::list<std::string> admin::lexer (std::string input) {
             spaceCurrentSequenceLength++;
         }
 
-        bool isNonSpaceChar = false;
-
         if ((i == len -1) && curItem.length() > 0) {
-            for (int i2 = 0; i2 < curItem.length(); i2++) {
-                if (curItem[i2] != ' ' && curItem[i2] != '\t' && curItem[i2] != '\n') {
-                    isNonSpaceChar = true;
-                    break;
-                }
-            }
-            if (isNonSpaceChar) {
+            if (!this->isContainsSpacesOnly(curItem)) {
 
                 for(int i2 = 0; i2 < curItem.length(); i2++) {
                     if (curItem[i2] == ' ' || curItem[i2] == '\t' || curItem[i2] == '\n') {
@@ -200,8 +201,39 @@ std::list<std::string> admin::lexer (std::string input) {
     return scriptsList;
 }
 
-void admin::parcer (std::list<std::string> input) {
-//    std::map <std::string, Command> commandsMap;
+void admin::parcer (std::list<std::string> items) {
+
+    std::map <std::string, Command*> commandsMap;
+
+    commandsMap["openDataServer"] = new OpenDataServerCommand();
+    for (int i = 0; i < items.size(); i++) {
+        auto it_front = items.begin();
+        advance(it_front, i);
+        std::string item = *it_front;
+
+        Command* currentCommand = commandsMap[item];
+     //   std::cout<<item<<std::endl;
+
+        if (currentCommand != NULL) {
+            
+        }
+
+        else if (this->isExpression(item)) {
+        //    std::cout<<(this->determineCurrentOperation(item))->calculate()<<std::endl;
+        }
+    }
+}
+
+bool admin::isExpression(std::string input) {
+    for (int i = 0; i < input.length(); i++) {
+        if (!(input[i] == '.' || input[i] == '(' || input[i] == ')'
+            || input[i] == '+' || input[i] == '-' || input[i] == '*'
+            || input[i] == '/' || isdigit(input[i]))) {
+                
+            return false;
+        }
+    }
+    return true;
 }
 
 Expression* admin::determineCurrentOperation(std::string expression) {
@@ -212,6 +244,10 @@ Expression* admin::determineCurrentOperation(std::string expression) {
     if (expression[0] == '(' && expression[len - 1] == ')') {
         expression = expression.substr(1, len - 2);
         len -= 2;
+    }
+
+    if (expression.empty()) {
+        return new Number("0");
     }
 
     bool isNumber = true;
@@ -246,6 +282,49 @@ Expression* admin::determineCurrentOperation(std::string expression) {
                 return new PlusOperation(expression.substr(0, i),
                                     expression.substr(i + 1, len - i -1));
             }
+
+            if (expression[i] == '-') {
+                return new MinusOperation(expression.substr(0, i),
+                                    expression.substr(i + 1, len - i -1));
+            }
         }
     }
+
+    numOfOpenedBrackets = 0;
+
+    for (int i = 0; i < len; i++) {
+
+        if (expression[i] == '(') {
+            numOfOpenedBrackets++;
+        }
+
+        if (expression[i] == ')') {
+            numOfOpenedBrackets--;
+        }
+
+        if (numOfOpenedBrackets == 0 && (expression[i] == '+' || expression[i] == '-'
+                                        || expression[i] == '*' || expression[i] == '/')) {
+
+            if (expression[i] == '*') {
+                return new MulOperation(expression.substr(0, i),
+                                    expression.substr(i + 1, len - i -1));
+            }
+
+            if (expression[i] == '/') {
+                return new DivOperation(expression.substr(0, i),
+                                    expression.substr(i + 1, len - i -1));
+            }
+        }
+    }
+}
+
+bool admin::isContainsSpacesOnly(std::string input) {
+
+    for (int i = 0; i < input.length(); i++) {
+        if (!(input[i] == ' ' || input[i] == '\t' || input[i] == '\n')) {
+            return false;
+        }
+    }
+
+    return true;
 }
