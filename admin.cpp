@@ -15,12 +15,15 @@ int main(int argc, char* argv[]) {
 
     while (std::getline(readFile, lineFromFile)) {
         std::cout<<lineFromFile<<std::endl;
-        script += ' ';
+        script += '|';
         script += lineFromFile;
     }
+
+    script += '|';
+
     readFile.close();
 
-    std::list<std::string> fff = admin.lexer(script);
+    std::vector<std::string> fff = admin.lexer(script);
 
     std::cout<<"LEXER'S RESULT:\n";
 
@@ -38,9 +41,9 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-std::list<std::string> admin::lexer (std::string input) {
+std::vector<std::string> admin::lexer (std::string input) {
 
-    std::list<std::string> scriptsList;
+    std::vector<std::string> scriptsList;
     int len = input.length();
     std::string curItem;
 
@@ -54,11 +57,25 @@ std::list<std::string> admin::lexer (std::string input) {
     char lastNonSpaceChar = ' ';
 
     for (int i = 0; i < len; i++) {
-        
+
         if (curItem.length() == 0 && (input[i] == ' ' || input[i] == '\n'
                                         || input[i] == '\t')) {
 
             continue;
+        }
+
+        if (input[i] == '|') {
+            for(int i2 = 0; i2 < curItem.length(); i2++) {
+                if (curItem[i2] == ' ' || curItem[i2] == '\t' || curItem[i2] == '\n') {
+                    std::string tempStr = curItem.substr(i2 + 1, curItem.length() - i2 - 1);
+                    curItem = curItem.substr(0, i2) + tempStr;
+                    i2--;
+                }
+            }
+
+            scriptsList.push_back(curItem);
+            scriptsList.push_back("|");
+            curItem.clear();
         }
 
         if (input[i] == ',' && expressionCurrentSequenceLength > 0 
@@ -72,6 +89,7 @@ std::list<std::string> admin::lexer (std::string input) {
                 }
             }
             scriptsList.push_back(curItem);
+            scriptsList.push_back(",");
             curItem.clear();
 
             commandCurrentSequenceLength = 0;
@@ -201,31 +219,141 @@ std::list<std::string> admin::lexer (std::string input) {
     return scriptsList;
 }
 
-void admin::parcer (std::list<std::string> items) {
+void admin::parcer (std::vector<std::string> items) {
 
     std::map <std::string, Command*> commandsMap;
 
     commandsMap["openDataServer"] = new OpenDataServerCommand();
+    commandsMap["connect"] = new ConnectCommand();
+    commandsMap["="] = new AssignmentCommand();
+    commandsMap["bind"] = new BindCommand();
+    commandsMap["if"] = new ConditionCommand();
+    commandsMap["while"] = new LoopCommand();
+    commandsMap["<"] = new SmallerCommand();
+    commandsMap[">"] = new BiggerCommand();
+    commandsMap["<="] = new SmallerEqualsCommand();
+    commandsMap[">="] = new BiggerEqualsCommand();
+    commandsMap["=="] = new EqualsCommand();
+    commandsMap["sleep"] = new SleepCommand();
+    commandsMap["print"] = new PrintCommand();
+
+    std::map <std::string, std::string> varMap;
+
+    std::map <std::string, std::string> bindMap;
+
+std::cout<<"PRINT_BEFORE****************8"<<std::endl;
+
+    int startLineIndex = 0;
+    int endLineIndex = -1;
+    for (int i = 0; i < items.size(); i++) {
+
+        auto it_front = items.begin();
+        advance(it_front, i);
+        std::string item = *it_front;
+
+        if (item == "|" && i != 0) {
+            startLineIndex = ++endLineIndex;
+            endLineIndex =  i - 1;
+        }
+std::cout<<startLineIndex<<" and "<<endLineIndex<<std::endl;        
+//std::cout<<"VAL****************8"<<std::endl;
+        for (int i2 = startLineIndex; i2 <= endLineIndex; i2++) {
+
+            it_front = items.begin();
+            advance(it_front, i2);
+            std::string item = *it_front;
+
+            //std::cout<<item<<std::endl;
+            if (item == "var") {
+
+                it_front = items.begin();
+                advance(it_front, i2+1);
+                std::string nextItem = *it_front;
+
+                varMap[nextItem] = "0";
+            }
+        }
+//std::cout<<"Syntax****************8"<<std::endl;
+        for (int i2 = startLineIndex; i2 <= endLineIndex; i2++, i++) {
+
+            it_front = items.begin();
+            advance(it_front, i2);
+            std::string item = *it_front;
+            std::string prevItem = " ";
+
+            if (i2 > 0) {
+                it_front = items.begin();
+                advance(it_front, i2 - 1);
+                prevItem = *it_front;
+            }
+
+            //std::cout<<item<<std::endl;
+            if (item[0] == ')' || item[0] == '+' || item[0] == '*' || item[0] == '/'
+                || (item[0] == '-' && prevItem == ",")) {
+std::cout<<"HERE!!!!!"<<std::endl;
+                prevItem += item;
+                items.erase(items.begin() + i2);
+                endLineIndex--;
+                i2--;
+                i--;
+            }
+        }
+    }
+    std::cout<<"PRINT_AFTER****************8"<<std::endl;
+    for (int i = 0; i < items.size(); i++) {
+        auto it_front = items.begin();
+        advance(it_front, i);
+        std::string item = *it_front;
+        std::cout<<item<<std::endl;
+    }
+/*
     for (int i = 0; i < items.size(); i++) {
         auto it_front = items.begin();
         advance(it_front, i);
         std::string item = *it_front;
 
         Command* currentCommand = commandsMap[item];
-     //   std::cout<<item<<std::endl;
+        std::string curVar = varMap[item];
 
-        if (currentCommand != NULL) {
-            
+        std::cout<<item<<std::endl;
+        if (curVar.length() > 0) {
+            items.at(i) = curVar;
+            std::cout<<"value of "<<item<<" is "<<curVar<<std::endl;
         }
 
-        else if (this->isExpression(item)) {
+//        if (currentCommand != NULL){
+  //          std::cout<<"It's command\n";
+    //    }
+
+        if (item == "var") {
+
+            it_front = items.begin();
+            advance(it_front, i+1);
+            std::string nextItem = *it_front;
+
+            varMap[nextItem] = "0";
+        }
+
+      //  else if (this->isExpressionToCalculation(item)) {
         //    std::cout<<(this->determineCurrentOperation(item))->calculate()<<std::endl;
-        }
-    }
+      //  }
+    }*/
 }
 
-bool admin::isExpression(std::string input) {
+bool admin::isExpressionToCalculation(std::string input) {
+
+    if (input == "+" || input == "-" || input == "*" || input == "/") {
+        return false;
+    }
+
+    int numOFBrackets = 0;
+
     for (int i = 0; i < input.length(); i++) {
+
+        if (input[i] == '(' || input[i] == ')') {
+            numOFBrackets++;
+        }
+
         if (!(input[i] == '.' || input[i] == '(' || input[i] == ')'
             || input[i] == '+' || input[i] == '-' || input[i] == '*'
             || input[i] == '/' || isdigit(input[i]))) {
@@ -233,6 +361,11 @@ bool admin::isExpression(std::string input) {
             return false;
         }
     }
+
+    if (numOFBrackets % 2 == 1) {
+        return false;
+    }
+
     return true;
 }
 
