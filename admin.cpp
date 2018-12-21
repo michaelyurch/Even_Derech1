@@ -241,64 +241,149 @@ void admin::parcer (std::vector<std::string> items) {
 
     std::map <std::string, std::string> bindMap;
 
+    std::vector<int> newLineIndexes;
+
 std::cout<<"PRINT_BEFORE****************8"<<std::endl;
 
-    int startLineIndex = 0;
-    int endLineIndex = -1;
     for (int i = 0; i < items.size(); i++) {
 
         auto it_front = items.begin();
         advance(it_front, i);
         std::string item = *it_front;
 
-        if (item == "|" && i != 0) {
-            startLineIndex = ++endLineIndex;
-            endLineIndex =  i - 1;
+        if (item == "|") {
+            std::cout<<i<<std::endl;
+            newLineIndexes.push_back(i);
         }
-std::cout<<startLineIndex<<" and "<<endLineIndex<<std::endl;        
-//std::cout<<"VAL****************8"<<std::endl;
-        for (int i2 = startLineIndex; i2 <= endLineIndex; i2++) {
+    }
 
-            it_front = items.begin();
+    int correction = 0;
+
+    for (int i = 0; i < newLineIndexes.size(); i++) {
+        auto it_front = newLineIndexes.begin();
+        advance(it_front, i);
+
+        int endLineIndex = *it_front;
+        int startLineIndex = 0;
+        
+        if (i != 0) {
+            it_front = newLineIndexes.begin();
+            advance(it_front, i - 1);
+            startLineIndex = *it_front + 1;
+        }
+
+std::cout<<startLineIndex<<" and "<<endLineIndex<<std::endl;     
+std::cout<<"VAL****************8"<<std::endl;
+
+        for (int i2 = startLineIndex; i2 < endLineIndex; i2++) {
+
+            auto it_front = items.begin();
             advance(it_front, i2);
             std::string item = *it_front;
 
-            //std::cout<<item<<std::endl;
+            std::cout<<item<<std::endl;
+
+            it_front = items.begin();
+            advance(it_front, i2+1);
+            std::string nextItem = *it_front;
+
             if (item == "var") {
 
-                it_front = items.begin();
-                advance(it_front, i2+1);
-                std::string nextItem = *it_front;
-
                 varMap[nextItem] = "0";
+                items.erase(items.begin() + i2);
+                i2--;
+                endLineIndex--;
+
+                for (int i3 = 0; i3 < newLineIndexes.size(); i3++) {
+                    auto it_front = newLineIndexes.begin();
+                    advance(it_front, i3);
+
+                    int curEndLineIndex = *it_front;
+                    curEndLineIndex--;
+                    newLineIndexes.at(i3) = curEndLineIndex;
+                }
+            }
+
+            std::string curVar = varMap[item];
+            if (curVar.length() > 0 && nextItem != "=") {
+                items.at(i2) = curVar;
             }
         }
-//std::cout<<"Syntax****************8"<<std::endl;
-        for (int i2 = startLineIndex; i2 <= endLineIndex; i2++, i++) {
 
-            it_front = items.begin();
+std::cout<<"Syntax****************8"<<std::endl;
+        for (int i2 = startLineIndex; i2 < endLineIndex; i2++) {
+            auto it_front = items.begin();
             advance(it_front, i2);
             std::string item = *it_front;
-            std::string prevItem = " ";
 
+            std::cout<<item<<std::endl;
+
+            std::string prevItem;
+            
             if (i2 > 0) {
                 it_front = items.begin();
                 advance(it_front, i2 - 1);
                 prevItem = *it_front;
             }
 
-            //std::cout<<item<<std::endl;
-            if (item[0] == ')' || item[0] == '+' || item[0] == '*' || item[0] == '/'
-                || (item[0] == '-' && prevItem == ",")) {
+            if (prevItem.length() > 0
+                && (item[0] == ')' || item[0] == '+' || item[0] == '*' || item[0] == '/'
+                || (item[0] == '-' && prevItem != "," && prevItem != "="))) {
 std::cout<<"HERE!!!!!"<<std::endl;
                 prevItem += item;
                 items.erase(items.begin() + i2);
-                endLineIndex--;
                 i2--;
-                i--;
+                items.at(i2) = prevItem;
+                endLineIndex--;
+
+                for (int i3 = 0; i3 < newLineIndexes.size(); i3++) {
+                    auto it_front = newLineIndexes.begin();
+                    advance(it_front, i3);
+
+                    int curEndLineIndex = *it_front;
+                    curEndLineIndex--;
+                    newLineIndexes.at(i3) = curEndLineIndex;
+                }
             }
         }
+
+        for (int i2 = startLineIndex; i2 < endLineIndex; i2++) {
+            auto it_front = items.begin();
+            advance(it_front, i2);
+            std::string item = *it_front;
+
+            std::cout<<item<<std::endl;
+
+            std::string nextItem;
+            
+            if (i2 + 1 < items.size()) {
+                it_front = items.begin();
+                advance(it_front, i2 + 1);
+                nextItem = *it_front;
+            }
+
+            if (nextItem.length() > 0
+                && (item[item.length() - 1] == '(' || item[item.length() - 1] == '+' 
+                || item[item.length() - 1] == '*' || item[item.length() - 1] == '/'
+                || item[item.length() - 1] == '-')) {
+std::cout<<"HERE!!!!!222222222222222222222222222"<<std::endl;
+                item += nextItem;
+                items.erase(items.begin() + i2 + 1);
+                items.at(i2) = item;
+                endLineIndex--;
+
+                for (int i3 = 0; i3 < newLineIndexes.size(); i3++) {
+                    auto it_front = newLineIndexes.begin();
+                    advance(it_front, i3);
+
+                    int curEndLineIndex = *it_front;
+                    curEndLineIndex--;
+                    newLineIndexes.at(i3) = curEndLineIndex;
+                }
+            }
+        }     
     }
+
     std::cout<<"PRINT_AFTER****************8"<<std::endl;
     for (int i = 0; i < items.size(); i++) {
         auto it_front = items.begin();
@@ -306,38 +391,6 @@ std::cout<<"HERE!!!!!"<<std::endl;
         std::string item = *it_front;
         std::cout<<item<<std::endl;
     }
-/*
-    for (int i = 0; i < items.size(); i++) {
-        auto it_front = items.begin();
-        advance(it_front, i);
-        std::string item = *it_front;
-
-        Command* currentCommand = commandsMap[item];
-        std::string curVar = varMap[item];
-
-        std::cout<<item<<std::endl;
-        if (curVar.length() > 0) {
-            items.at(i) = curVar;
-            std::cout<<"value of "<<item<<" is "<<curVar<<std::endl;
-        }
-
-//        if (currentCommand != NULL){
-  //          std::cout<<"It's command\n";
-    //    }
-
-        if (item == "var") {
-
-            it_front = items.begin();
-            advance(it_front, i+1);
-            std::string nextItem = *it_front;
-
-            varMap[nextItem] = "0";
-        }
-
-      //  else if (this->isExpressionToCalculation(item)) {
-        //    std::cout<<(this->determineCurrentOperation(item))->calculate()<<std::endl;
-      //  }
-    }*/
 }
 
 bool admin::isExpressionToCalculation(std::string input) {
