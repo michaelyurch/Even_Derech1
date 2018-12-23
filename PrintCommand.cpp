@@ -1,6 +1,5 @@
 #include "PrintCommand.h"
 
-int PrintCommand::execute() {
-
-    return 3;
+int PrintCommand::execute(){
+    std:: cout  << this->operand1;
 }
