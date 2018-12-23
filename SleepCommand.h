@@ -1,16 +1,19 @@
-#ifndef SLEEP_COMMAND_H
-#define SLEEP_COMMAND_H
+#ifndef UNTITLED13_SLEEPCOMMAND_H
+#define UNTITLED13_SLEEPCOMMAND_H
 
+#include <string>
 #include "Command.h"
+#include <chrono>
+#include <thread>
 
-class SleepCommand : public Command
-{
-	std::string timeToSleep;
+class SleepCommand: public Command {
+    std::string operand1;
 public:
-	int execute();
-	void getFirstArgument(std::string arg){this->timeToSleep = arg;}
-	void getSecondArgument(std::string arg){}
-	void getThirdArgument(std::string arg){}
+    int execute() override ;
+    void getFirstArgument(std::string arg){this->operand1 = arg;}
+    void getSecondArgument(std::string arg){}
+    void getThirdArgument(std::string arg){}
 };
+
 
 #endif

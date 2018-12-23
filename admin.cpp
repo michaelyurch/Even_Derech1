@@ -530,7 +530,12 @@ void admin::parcer (std::vector<std::string> script) {
                 conectCommand->getSecondArgument(items[i2]);
                 ((ConnectCommand*)conectCommand)->setVarsAndBinds(varMap, bindMap
                     , bindedVariables);
+
                 conectCommand->execute();
+                
+             //   std::thread first (performCommand, conectCommand);
+              //  first.join();
+                continue;
             }
 
             if (item == "while" || item == "if") {
@@ -706,6 +711,12 @@ void admin::parcer (std::vector<std::string> script) {
         }  
     }
     this->print("after", items);
+}
+
+void static performCommand(Command* command) {
+    while (true) {
+        command->execute();
+    }
 }
 
 void admin::print(std::string str, std::vector<std::string> items) {

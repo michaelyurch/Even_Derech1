@@ -6,7 +6,7 @@ std::cout<<"YYYYYYYYYYYYYY "<<bindedVariables.size()<<"\n";
 std::cout<<"YYYYYYYYYYYYYY "<<bindMap.size()<<"\n";
     for (int i = 0 ; i < bindedVariables.size(); i++) {
         std::cout<<"HHHHHHHH "<< bindedVariables[i]
-            << ": "<<bindMap[bindedVariables[i]]<<"\n";
+            <<": "<<varMap[bindedVariables[i]]<<": "<<bindMap[bindedVariables[i]]<<"\n";
         
         this->connectToServer(varMap[bindedVariables[i]],bindMap[bindedVariables[i]]);
     }
@@ -57,10 +57,16 @@ void ConnectCommand::connectToServer(std::string value, std::string link) {
    bzero(buffer,256);
   // fgets(buffer,255,stdin);
 
+    if (link[0] == '\"' && link[link.length() - 1] == '\"' && link.length() > 1) {
+        link = link.substr(1, link.length() - 2);
+    } 
+
   std::string command = "set ";
   command += link;
   command += " ";
   command += value;
+  std::cout<<"77777777777777777777777777: "<<command<<"\n";
+  std::cout<<"88888888888888888888888888: "<<buffer<<"\n";
    strcpy(buffer, command.c_str());
    strcat(buffer, "\r\n");
    

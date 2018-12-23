@@ -6,6 +6,7 @@
 #include <string.h>
 #include <iostream>
 #include <fstream>
+#include <thread>
 
 #include "Command.h"
 #include "Expression.h"
@@ -51,5 +52,7 @@ public:
         std::vector<std::string> items, int startLineIndex, int endLineIndex);
     void print(std::string str, std::vector<std::string> items);
 };
+
+void static performCommand(Command* command);
 
 #endif
