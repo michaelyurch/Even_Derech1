@@ -17,11 +17,6 @@
 
 #include "OpenDataServerCommand.h"
 #include "ConnectCommand.h"
-#include "VarCommand.h"
-#include "AssignmentCommand.h"
-#include "BindCommand.h"
-#include "ConditionCommand.h"
-#include "LoopCommand.h"
 #include "BiggerCommand.h"
 #include "BiggerEqualsCommand.h"
 #include "SmallerCommand.h"
@@ -32,12 +27,29 @@
 #include "OpenDataServerCommand.h"
 
 class admin {
+    
+    std::map <std::string, std::string> varMap;
+    std::map <std::string, std::string> bindMap;
+    std::vector<std::string> bindedVariables;
+    std::vector<int> newLineIndexes;
+    std::vector<int> newLineIndexesOriginal;
+    std::vector<int> beginBlockIndexesSteak;
+    std::vector<int> endBlockIndexesSteak;
+    std::vector<std::string> nameOfBlocksSteak;
+    std::map <std::string, Command*> commandsMap;
 public:
     std::vector<std::string> lexer (std::string input);
     void parcer (std::vector<std::string> items);
     Expression* determineCurrentOperation(std::string expression);
     bool isExpressionToCalculation(std::string input);
     bool isContainsSpacesOnly(std::string input);
+    std::vector<std::string> substituteVariablesValues(std::vector<std::string> items
+        , int startLineIndex, int endLineIndex);
+    std::vector<std::string> fixSyntaxCorrection(std::vector<std::string> items
+        , int startLineIndex, int endLineIndex);
+    std::vector<std::string> calculateInternalExpressions(
+        std::vector<std::string> items, int startLineIndex, int endLineIndex);
+    void print(std::string str, std::vector<std::string> items);
 };
 
 #endif
