@@ -6,7 +6,9 @@
 #include <string.h>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 #include <thread>
+#include <chrono>
 
 #include "Command.h"
 #include "Expression.h"
@@ -15,6 +17,7 @@
 #include "MinusOperation.h"
 #include "MulOperation.h"
 #include "DivOperation.h"
+#include "NegOperation.h"
 
 #include "OpenDataServerCommand.h"
 #include "ConnectCommand.h"
@@ -27,9 +30,10 @@
 #include "PrintCommand.h"
 #include "OpenDataServerCommand.h"
 
+using namespace std;
+
 class admin {
     
-    std::map <std::string, std::string> varMap;
     std::map <std::string, std::string> bindMap;
     std::vector<std::string> bindedVariables;
     std::vector<int> newLineIndexes;
@@ -53,6 +57,8 @@ public:
     void print(std::string str, std::vector<std::string> items);
 };
 
-void static performCommand(Command* command);
+void createClient();
+void createServer();
+void createMainTread(std::string file);
 
 #endif

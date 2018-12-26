@@ -20,10 +20,11 @@ class ConnectCommand : public Command
 	std::map <std::string, std::string> varMap;
     std::map <std::string, std::string> bindMap;
 	std::vector<std::string> bindedVariables;
+	int sockfdGeneral;
 public:
 	int execute();
 	void getFirstArgument(std::string arg){this->ip = arg;}
-	void getSecondArgument(std::string arg){this->port = arg;}
+	void getSecondArgument(std::string arg);
 	void getThirdArgument(std::string arg){};
 	void setVarsAndBinds(std::map <std::string, std::string> _varMap,
 		std::map <std::string, std::string> _bindMap,

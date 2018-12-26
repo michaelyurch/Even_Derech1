@@ -1,20 +1,23 @@
 #include "admin.h"
 
-int main(int argc, char* argv[]) {
+Command* globalOpenDataServerCommand = NULL;
+Command* globalConnectCommand = NULL;
+bool isScriptParcingFinished = false;
+bool stopForClientsConnection = false;
+std::map <std::string, std::string> varMap;
 
+void createMainTread(std::string file) {
     admin admin;
 
-    std::ifstream readFile("input.txt");
+    std::ifstream readFile(file.c_str());
     std::string lineFromFile;
     std::string script;
 
     if (!readFile.is_open()) {
-        std::cout<<"Error ocured with openning of the file\n";
-        return 0;
+        return;
     }
 
     while (std::getline(readFile, lineFromFile)) {
-        std::cout<<lineFromFile<<std::endl;
         script += '|';
         script += lineFromFile;
     }
@@ -25,18 +28,49 @@ int main(int argc, char* argv[]) {
 
     std::vector<std::string> fff = admin.lexer(script);
 
-    std::cout<<"LEXER'S RESULT:\n";
-
     for (int i = 0; i < fff.size(); i++) {
 
         auto it_front = fff.begin();
         advance(it_front, i);
         std::string str = *it_front;
-
-        std::cout<<str<<std::endl;
     }
 
     admin.parcer(admin.lexer(script));
+}
+
+void createClient() {
+    while (isScriptParcingFinished == false) {
+        if (!stopForClientsConnection) {
+            if (globalConnectCommand != NULL) {
+                globalConnectCommand->execute();
+            }
+        }
+    }
+}
+
+void createServer() {
+
+    admin admin;
+
+    while (isScriptParcingFinished == false) {
+        if (globalOpenDataServerCommand != NULL) {
+            if (!stopForClientsConnection) {
+                varMap 
+                    = ((OpenDataServerCommand*)globalOpenDataServerCommand)->updateValues();
+            }
+        }
+    }
+}
+
+int main(int argc, char* argv[]) {
+    std::string file = argv[1];
+    thread mainThread(createMainTread,file);
+    thread clientThread(createClient);
+    thread serverThread(createServer);
+
+    clientThread.join();
+    serverThread.join();
+    mainThread.join();
 
     return 0;
 }
@@ -264,8 +298,6 @@ std::vector<std::string> admin::substituteVariablesValues(std::vector<std::strin
             advance(it_front, i2);
             std::string item = *it_front;
 
-            std::cout<<item<<std::endl;
-
             it_front = items.begin();
             advance(it_front, i2+1);
             std::string nextItem = *it_front;
@@ -303,8 +335,6 @@ std::vector<std::string> admin::fixSyntaxCorrection(std::vector<std::string> ite
             advance(it_front, i2);
             std::string item = *it_front;
 
-            std::cout<<item<<std::endl;
-
             std::string prevItem;
             
             if (i2 > 0) {
@@ -317,7 +347,7 @@ std::vector<std::string> admin::fixSyntaxCorrection(std::vector<std::string> ite
                 && (item[0] == ')' || item[0] == '+' || item[0] == '*' || item[0] == '/'
                 || (item[0] == '-' && prevItem != "," && prevItem != "="
                     && commandsMap.find(item) != commandsMap.end()))) {
-//std::cout<<"HERE!!!!!"<<std::endl;
+
                 prevItem += item;
                 items.erase(items.begin() + i2);
                 i2--;
@@ -340,8 +370,6 @@ std::vector<std::string> admin::fixSyntaxCorrection(std::vector<std::string> ite
             advance(it_front, i2);
             std::string item = *it_front;
 
-   //         std::cout<<item<<std::endl;
-
             std::string nextItem;
             
             if (i2 + 1 < items.size()) {
@@ -355,7 +383,6 @@ std::vector<std::string> admin::fixSyntaxCorrection(std::vector<std::string> ite
                 || ((item[item.length() - 1] == '+' 
                 || item[item.length() - 1] == '*' || item[item.length() - 1] == '/'
                 || item[item.length() - 1] == '-') && (item.length() - 1 != 0)))) {
-//std::cout<<"HERE!!!!!222222222222222222222222222"<<std::endl;
                 item += nextItem;
                 items.erase(items.begin() + i2 + 1);
                 items.at(i2) = item;
@@ -382,8 +409,6 @@ std::vector<std::string> admin::calculateInternalExpressions(
             auto it_front = items.begin();
             advance(it_front, i2);
             std::string item = *it_front;
-
-            std::cout<<item<<std::endl;
             
             std::string prevItem;
             std::string prevPrevItem;
@@ -411,10 +436,20 @@ std::vector<std::string> admin::calculateInternalExpressions(
 
                 if (prevPrevItem.length() > 0) {
                     if (prevItem == "=") {
-                        double doubleVal = std::stod(item);
 
-//std::cout<<"bbb2222 "<<item<<std::endl;
                         varMap[prevPrevItem] = item;
+
+                        Command* conectCommand = commandsMap["connect"];
+                        if (conectCommand != NULL) {
+                            ((ConnectCommand*)conectCommand)->setVarsAndBinds(varMap, bindMap
+                            , bindedVariables);
+                        }
+                        
+                        Command* openDataServerCommand = commandsMap["openDataServer"];
+                        if (openDataServerCommand != NULL) {
+                            ((OpenDataServerCommand*)openDataServerCommand)->setVarsAndBinds(
+                                varMap, bindMap, bindedVariables);
+                        }
                     }
                 }
             }
@@ -425,10 +460,16 @@ std::vector<std::string> admin::calculateInternalExpressions(
                     bindedVariables.push_back(prevPrevItem);
 
                     Command* conectCommand = commandsMap["connect"];
-                    ((ConnectCommand*)conectCommand)->setVarsAndBinds(varMap, bindMap
+                    if (conectCommand != NULL) {
+                        ((ConnectCommand*)conectCommand)->setVarsAndBinds(varMap, bindMap
                         , bindedVariables);
-                    
-               //     std::cout<<"BIND ADDED\n";
+                    }
+                        
+                    Command* openDataServerCommand = commandsMap["openDataServer"];
+                    if (openDataServerCommand != NULL) {
+                        ((OpenDataServerCommand*)openDataServerCommand)->setVarsAndBinds(
+                            varMap, bindMap, bindedVariables);
+                    }
                 }
             }
         }
@@ -451,8 +492,6 @@ void admin::parcer (std::vector<std::string> script) {
     commandsMap["sleep"] = new SleepCommand();
     commandsMap["print"] = new PrintCommand();
 
-//std::cout<<"PRINT_BEFORE****************8"<<std::endl;
-
     std::vector<std::string> items;
 
     for (int i = 0; i < script.size(); i++) {
@@ -464,7 +503,6 @@ void admin::parcer (std::vector<std::string> script) {
         items.push_back(item);
 
         if (item == "|") {
-   //         std::cout<<i<<std::endl;
             newLineIndexes.push_back(i);
             newLineIndexesOriginal.push_back(i);
         }
@@ -473,6 +511,27 @@ void admin::parcer (std::vector<std::string> script) {
  //   std::vector<std::string> items = script;
 
     for (int i = 0; i < newLineIndexes.size(); i++) {
+
+        if (i == newLineIndexes.size() - 1) {
+            isScriptParcingFinished = true;
+        }
+
+        while (!items.empty()) {
+            items.pop_back();
+        }
+
+        for (int i2 = 0; i2 < script.size(); i2++) {
+            items.push_back(script[i2]);
+        }
+
+        while (!newLineIndexes.empty()) {
+            newLineIndexes.pop_back();
+        }
+
+        for (int i2 = 0; i2 < newLineIndexesOriginal.size(); i2++) {
+            newLineIndexes.push_back(newLineIndexesOriginal[i2]);
+        }
+
         auto it_front = newLineIndexes.begin();
         advance(it_front, i);
 
@@ -494,7 +553,7 @@ void admin::parcer (std::vector<std::string> script) {
 
         for (int i2 = startLineIndex; i2 < endLineIndex; i2++) {
 
-                        auto it_front = items.begin();
+            auto it_front = items.begin();
             advance(it_front, i2);
             std::string item = *it_front;
             
@@ -530,182 +589,115 @@ void admin::parcer (std::vector<std::string> script) {
                 conectCommand->getSecondArgument(items[i2]);
                 ((ConnectCommand*)conectCommand)->setVarsAndBinds(varMap, bindMap
                     , bindedVariables);
-
-                conectCommand->execute();
                 
-             //   std::thread first (performCommand, conectCommand);
-              //  first.join();
+                globalConnectCommand = conectCommand;
+
                 continue;
             }
 
+            if (item == "openDataServer") {
+                Command* openDataServerCommand = commandsMap[item];
+                if (items[++i2] == ",") {
+                    ++i2;
+                }
+                openDataServerCommand->getFirstArgument(items[i2]);
+                if (items[++i2] == ",") {
+                    ++i2;
+                }
+
+                stopForClientsConnection = true;
+
+                ((OpenDataServerCommand*)openDataServerCommand)
+                        ->setVarsAndBinds(varMap, bindMap, bindedVariables);
+
+                globalOpenDataServerCommand = openDataServerCommand;
+                ((OpenDataServerCommand*)openDataServerCommand)->getConnection();
+                stopForClientsConnection = false;
+
+                continue;
+            }
+
+            if (item == "sleep" && i2 + 1 < items.size()) {
+                double milisecondsToSleep = std::stod(items[i2 + 1]);
+                milisecondsToSleep /= 1000;
+                std::this_thread::sleep_for(std::chrono::seconds((int)milisecondsToSleep));
+            }
+
+            if (item == "print" && i2 + 1 < items.size()) {
+                std::string str = items[i2 + 1];
+                if (str[0] == '\"'
+                            && str[str.length() - 1] == '\"') {
+            
+                    str = str.substr(1, str.length() - 2);
+                }
+                std::cout<<str<<"\n";
+            }
+
             if (item == "while" || item == "if") {
-                if (i2 < items.size() - 3) {
-                    it_front = items.begin();
-                    advance(it_front, i2 + 2);
-                    std::string nextNextItem = *it_front;
+                if (i2 + 3 < items.size()) {
+                    Command *conditionCommand = commandsMap[items[i2 + 2]];
+                    conditionCommand->getFirstArgument(items[i2 + 1]);
+                    conditionCommand->getSecondArgument(items[i2 + 3]);
+                    int result = conditionCommand->execute();
 
-                    it_front = items.begin();
-                    advance(it_front, i2 + 3);
-                    std::string nextNextNextItem = *it_front;
-
-                    Command *compareCommand = commandsMap[nextNextItem];
-                std::cout<<nextItem<<" &^&^ 11111\n";    
-                    compareCommand->getFirstArgument(nextItem);
-                    std::cout<<nextNextNextItem<<" &^&^ 222222\n"; 
-                    std::cout<<nextNextItem<<"\n";  
-                    compareCommand->getSecondArgument(nextNextNextItem);
-                    std::cout<<" &^&^ 333333\n";  
-                    int result = compareCommand->execute();
-                    std::cout<<"&^&^ 444444   "<<result<<std::endl;  
-                    
                     int numOfOpenedBraces = 0;
-                    int indexOfBlockEnd = -1;
-                    int indexOfBlockBegin = i;
 
                     for (int i3 = i; i3 < newLineIndexes.size() - 1; i3++) {
-                        
-                        auto it_front = newLineIndexes.begin();
-                        advance(it_front, i3);
-                        int curItemNum = *it_front;
-                        
-                        auto it_front1 = items.begin();
-                        advance(it_front1, curItemNum + 1);
-                        std::string curItem = *it_front1;
+                        int indexOfCurLine = newLineIndexes[i3] + 1;
 
-                        if (curItem == "{") {
+                        if (items[indexOfCurLine] == "{") {
                             numOfOpenedBraces++;
                         }
-
-                        if (curItem == "}") {
+                        if (items[indexOfCurLine] == "}") {
                             numOfOpenedBraces--;
-
                             if (numOfOpenedBraces == 0) {
-                                indexOfBlockEnd = i3;
-                                break;
+                                beginBlockIndexesSteak.push_back(i);
+                                endBlockIndexesSteak.push_back(i3);
+                                nameOfBlocksSteak.push_back(item);
                             }
                         }
                     }
 
-                    std::cout<<"&^&^ 555555   "<<indexOfBlockEnd<<std::endl;
-                    if (result == 1) {
-                        beginBlockIndexesSteak.push_back(indexOfBlockBegin);
-                        endBlockIndexesSteak.push_back(indexOfBlockEnd);
-                        nameOfBlocksSteak.push_back(item);
+                    if (result == 0) {
+
+                        i = endBlockIndexesSteak[endBlockIndexesSteak.size() - 1];
+
+                        beginBlockIndexesSteak.pop_back();
+                        endBlockIndexesSteak.pop_back();
+                        nameOfBlocksSteak.pop_back();
+
+                        if (i + 1 < newLineIndexes.size() - 1) {
+                            i++;
+                            i2 = newLineIndexes[i] + 1;
+                            continue;
+                        }
+                        else {
+                            i = newLineIndexes.size() - 1;
+                            break;
+                        }
                     }
-                    else {
-
-                        auto it_front = newLineIndexes.begin();
-                        advance(it_front, indexOfBlockEnd);
-                        int curItemNum = *it_front;
-
-                        i = indexOfBlockEnd;
-                        i2 = curItemNum + 1;
-                        continue;
-                    }  
                 }
             }
 
-            int indexOfEndClosestBlock = -1;
-            int indexOfBeginClosestBlock = -1;
-            std::string nameOfClosestBlock;
+            if (item == "}") {
 
-            if (endBlockIndexesSteak.size() > 0) {
-
-                int lastIndex = endBlockIndexesSteak.size() - 1;
-
-                indexOfEndClosestBlock = newLineIndexes[endBlockIndexesSteak
-                    [lastIndex]];
-
-                indexOfEndClosestBlock++;
-
-                indexOfBeginClosestBlock = newLineIndexes[beginBlockIndexesSteak
-                    [lastIndex]];
-
-                indexOfBeginClosestBlock++;
-
-                nameOfClosestBlock = nameOfBlocksSteak[lastIndex];
-            }
-            
-            if (i2 == indexOfEndClosestBlock) {
-                std::cout<<"////////////////////////////////////////// "
-                <<nameOfClosestBlock<<std::endl;
-
-                int lastIndex = endBlockIndexesSteak.size() - 1;
-
-                if (nameOfClosestBlock == "while") {
-
-                    int startOfLoopOriginal = newLineIndexesOriginal[beginBlockIndexesSteak
-                            [lastIndex]];
-
-                    startOfLoopOriginal++;
-
-                    int endOfLoopOriginal = newLineIndexesOriginal[endBlockIndexesSteak
-                            [lastIndex]];
-
-                    endOfLoopOriginal++;
-
-                    indexOfBeginClosestBlock += 2;
-
-                    std::cout<<startOfLoopOriginal<<"\n";
-                    std::cout<<endOfLoopOriginal<<"\n";
-                    std::cout<<indexOfBeginClosestBlock<<"\n";
-                    std::cout<<indexOfEndClosestBlock<<"\n";
-
-                    int prevLoopShift = (endOfLoopOriginal - startOfLoopOriginal)
-                        - (indexOfEndClosestBlock - indexOfBeginClosestBlock);
-
-                    std::cout<<"RRRRRRRRRRRRRRRRRR prevLoopShift "
-                    <<prevLoopShift<<"\n";
-
-                    for (int i3 = i + 1; i3 < newLineIndexes.size(); i3++) {
-                        newLineIndexes.at(i3) = newLineIndexes[i3] + prevLoopShift;
-                    }
-                    
-                    for (int i3 = 0; i3 < prevLoopShift; i3++) {
-                        items.insert(items.begin() + indexOfBeginClosestBlock + i3, "^");
-                    }
-
-                    int counter = indexOfBeginClosestBlock;
-
-                    for (int i3 = startOfLoopOriginal; i3 <= endOfLoopOriginal; i3++) {
-                        items.at(counter) = script[i3];
-                        counter++;
-                    }
-                    print("AFTER_LOOP", items);
-
-                    for (int i3 = beginBlockIndexesSteak[lastIndex]; 
-                            i3 <= endBlockIndexesSteak[lastIndex]; i3++) {
-                    std::cout<<"IIIIIIIIIIIIIIIII"<<i3<<"\n";
-                        auto it_front = newLineIndexes.begin();
-                        advance(it_front, i3);
-
-                        int endLineIndex = *it_front;
-                        int startLineIndex = 0;
-        
-                        if (i3 != 0) {
-                            it_front = newLineIndexes.begin();
-                            advance(it_front, i3 - 1);
-                            startLineIndex = *it_front + 1;
-                        }
-
-                        this->substituteVariablesValues(items, startLineIndex
-                            , endLineIndex);
-                        this->fixSyntaxCorrection(items, startLineIndex
-                            , endLineIndex);
-                        this->calculateInternalExpressions(items, startLineIndex
-                            , endLineIndex);
-                    }
-
-                    i = beginBlockIndexesSteak[lastIndex]-1;
-                    i2 = newLineIndexes[i];
-
-                    std::cout<<"UUUUUUUUUU" <<i<<" and "<<i2<<"\n";
-
-                    endBlockIndexesSteak.pop_back();
+                if (nameOfBlocksSteak[nameOfBlocksSteak.size() - 1] == "if") {
                     beginBlockIndexesSteak.pop_back();
+                    endBlockIndexesSteak.pop_back();
                     nameOfBlocksSteak.pop_back();
 
-                    continue;
+                }
+                else if (nameOfBlocksSteak[nameOfBlocksSteak.size() - 1] == "while") {
+
+                    i = beginBlockIndexesSteak[beginBlockIndexesSteak.size() - 1];
+
+                    i--;
+
+                    beginBlockIndexesSteak.pop_back();
+                    endBlockIndexesSteak.pop_back();
+                    nameOfBlocksSteak.pop_back();
+
+                    break;
                 }
             }
         }  
@@ -713,21 +705,12 @@ void admin::parcer (std::vector<std::string> script) {
     this->print("after", items);
 }
 
-void static performCommand(Command* command) {
-    while (true) {
-        command->execute();
-    }
-}
-
 void admin::print(std::string str, std::vector<std::string> items) {
-    std::cout<<"PRINT****************8"<<str<<std::endl;
     for (int i = 0; i < items.size(); i++) {
         auto it_front = items.begin();
         advance(it_front, i);
         std::string item = *it_front;
-        std::cout<<item<<std::endl;
     }
-        std::cout<<"ENDDDDDDDDDDDDDD****************8"<<str<<std::endl;
 }
 
 bool admin::isExpressionToCalculation(std::string input) {
@@ -772,18 +755,21 @@ Expression* admin::determineCurrentOperation(std::string expression) {
     if (expression.empty()) {
         return new Number("0");
     }
-
+/*
     if (expression[0] == '-') {
-        for (int i = 1; i < expression.length(); i++) {
-            if (expression[i] == '-') {
-                expression[i] = '+';
-            }
-            else if (expression[i] == '+') {
-                expression[i] = '-';
-            }
-        }
-    }
 
+        std::string restOfEcpression = expression.substr(1, expression.length() - 1);
+
+         if (restOfEcpression[0] != '(' && restOfEcpression[restOfEcpression.length() - 1] != ')') {
+            std::string temp = "(";
+            temp += restOfEcpression;
+            temp += ")";
+            restOfEcpression = temp;
+        }
+
+        return new NegOperation(restOfEcpression);
+    }
+*/
     bool isNumber = true;
 
     for (int i = 0; i < len; i++) {
@@ -813,13 +799,46 @@ Expression* admin::determineCurrentOperation(std::string expression) {
                                         || expression[i] == '*' || expression[i] == '/')) {
             
             if (expression[i] == '+') {
-                return new PlusOperation(expression.substr(0, i),
-                                    expression.substr(i + 1, len - i -1));
+                std::string leftOperand = expression.substr(0, i);
+                std::string rightOperand = expression.substr(i + 1, len - i -1);
+
+                if (leftOperand[0] != '(' && leftOperand[leftOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += leftOperand;
+                    temp += ")";
+                    leftOperand = temp;
+                }
+
+                if (rightOperand[0] != '(' && rightOperand[rightOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += rightOperand;
+                    temp += ")";
+                    rightOperand = temp;
+                }
+
+                return new PlusOperation(leftOperand, rightOperand);
             }
 
-            if (expression[i] == '-') {
-                return new MinusOperation(expression.substr(0, i),
-                                    expression.substr(i + 1, len - i -1));
+            if (expression[i] == '-' && i != 0) {
+
+                std::string leftOperand = expression.substr(0, i);
+                std::string rightOperand = expression.substr(i + 1, len - i -1);
+
+                if (leftOperand[0] != '(' && leftOperand[leftOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += leftOperand;
+                    temp += ")";
+                    leftOperand = temp;
+                }
+
+                if (rightOperand[0] != '(' && rightOperand[rightOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += rightOperand;
+                    temp += ")";
+                    rightOperand = temp;
+                }
+
+                return new MinusOperation(leftOperand, rightOperand);
             }
         }
     }
@@ -840,13 +859,80 @@ Expression* admin::determineCurrentOperation(std::string expression) {
                                         || expression[i] == '*' || expression[i] == '/')) {
 
             if (expression[i] == '*') {
-                return new MulOperation(expression.substr(0, i),
-                                    expression.substr(i + 1, len - i -1));
+
+                std::string leftOperand = expression.substr(0, i);
+                std::string rightOperand = expression.substr(i + 1, len - i -1);
+
+                if (leftOperand[0] != '(' && leftOperand[leftOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += leftOperand;
+                    temp += ")";
+                    leftOperand = temp;
+                }
+
+                if (rightOperand[0] != '(' && rightOperand[rightOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += rightOperand;
+                    temp += ")";
+                    rightOperand = temp;
+                }
+
+                return new MulOperation(leftOperand, rightOperand);
             }
 
             if (expression[i] == '/') {
-                return new DivOperation(expression.substr(0, i),
-                                    expression.substr(i + 1, len - i -1));
+
+                std::string leftOperand = expression.substr(0, i);
+                std::string rightOperand = expression.substr(i + 1, len - i -1);
+
+                if (leftOperand[0] != '(' && leftOperand[leftOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += leftOperand;
+                    temp += ")";
+                    leftOperand = temp;
+                }
+
+                if (rightOperand[0] != '(' && rightOperand[rightOperand.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += rightOperand;
+                    temp += ")";
+                    rightOperand = temp;
+                }
+
+
+                return new DivOperation(leftOperand, rightOperand);
+            }
+        }
+    }
+
+    numOfOpenedBrackets = 0;
+
+    for (int i = 0; i < len; i++) {
+
+        if (expression[i] == '(') {
+            numOfOpenedBrackets++;
+        }
+
+        if (expression[i] == ')') {
+            numOfOpenedBrackets--;
+        }
+
+        if (numOfOpenedBrackets == 0 && (expression[i] == '+' || expression[i] == '-'
+                                        || expression[i] == '*' || expression[i] == '/')) {
+
+        
+            if (expression[i] == '-' && i == 0) {
+                std::string restOfEcpression = expression.substr(1, expression.length() - 1);
+
+                if (restOfEcpression[0] != '(' 
+                    && restOfEcpression[restOfEcpression.length() - 1] != ')') {
+                    std::string temp = "(";
+                    temp += restOfEcpression;
+                    temp += ")";
+                    restOfEcpression = temp;
+                }
+
+            return new NegOperation(restOfEcpression);
             }
         }
     }

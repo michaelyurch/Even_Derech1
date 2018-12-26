@@ -7,6 +7,7 @@ PlusOperation::PlusOperation(std::string _leftOperand, std::string _rightOperand
 }
 
 std::string PlusOperation::calculate() {
+
     std::string leftOperandResult = this->leftOperand->calculate();
     std::string rightOperandResult = this->rightOperand->calculate();
 
